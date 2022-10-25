@@ -1,47 +1,35 @@
-pipeline {
+pipeline{
     agent any
     tools {
-        maven 'Maven363'
+      maven 'maven3'
     }
-    options {
-        timeout(10)
-        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '5', numToKeepStr: '5')
+    parameters {
+      choice choices: ['Main', 'Feature-1', 'Gokul', 'master'], description: 'Choose the branch', name: 'Branch'
     }
-    stages {
-        stage('Build') {
-            steps {
-                sh "mvn clean install"
+    stages{
+        stage("Git checkout"){
+            steps{
+                git branch: Branch ,url: 'https://github.com/gokulgk7989/New-webapp.git' 
             }
         }
-        stage('upload artifact to nexus') {
-            steps {
-                nexusArtifactUploader artifacts: [
-                    [
-                        artifactId: 'wwp', 
-                        classifier: '', 
-                        file: 'target/wwp-1.0.0.war', 
-                        type: 'war'
-                    ]
-                ], 
-                    credentialsId: 'nexus3', 
-                    groupId: 'koddas.web.war', 
-                    nexusUrl: '10.0.0.91:8081', 
-                    nexusVersion: 'nexus3', 
-                    protocol: 'http', 
-                    repository: 'samplerepo', 
-                    version: '1.0.0'
+        stage("Maven build"){
+            steps{
+                sh "mvn clean package"
+            }
+        }
+        stage("Deployment to Tomcat"){
+            steps{
+                sshagent(['Tomcat']){
+                    sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.42.56:/opt/tomcat9/webapps"
+                    sh "ssh ec2-user@172.31.42.56 /opt/tomcat9/bin/shutdown.sh"
+                    sh "ssh ec2-user@172.31.42.56 /opt/tomcat9/bin/startup.sh"
+                }
             }
         }
     }
     post {
-        always{
-            deleteDir()
+          success {
+            archiveArtifacts artifacts: 'target/*.war', followSymlinks: false
+          }
         }
-        failure {
-            echo "sendmail -s mvn build failed receipients@my.com"
-        }
-        success {
-            echo "The job is successful"
-        }
-    }
 }
