@@ -3,33 +3,38 @@ pipeline{
     tools {
       maven 'maven3'
     }
-    parameters {
-      choice choices: ['Main', 'Feature-1', 'Gokul', 'master'], description: 'Choose the branch', name: 'Branch'
+    options {
+      buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '3', numToKeepStr: '3')
     }
+    parameters {
+      choice choices: ['master', 'Feature-1', 'Feature-2', 'Gokul', 'development', 'production', 'Raju'], description: 'Select the branch', name: 'Branch'
+    }
+
     stages{
-        stage("Git checkout"){
+        stage("Git Checkout"){
             steps{
-                git branch: Branch ,url: 'https://github.com/gokulgk7989/New-webapp.git' 
+                git branch: Branch, url: 'https://github.com/gokulgk7989/New-webapp'
             }
         }
-        stage("Maven build"){
+        stage("maven build"){
             steps{
                 sh "mvn clean package"
             }
         }
-        stage("Deployment to Tomcat"){
+        stage("Tomcat Deployment"){
             steps{
-                sshagent(['Tomcat']){
-                    sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.42.56:/opt/tomcat9/webapps"
-                    sh "ssh ec2-user@172.31.42.56 /opt/tomcat9/bin/shutdown.sh"
-                    sh "ssh ec2-user@172.31.42.56 /opt/tomcat9/bin/startup.sh"
+                sshagent(['tomcat-dev']){
+                    sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.44.98:/opt/tomcat9/webapps"
+                    sh "ssh ec2-user@172.31.44.98 sudo /opt/tomcat9/bin/shutdown.sh"
+                    sh "ssh ec2-user@172.31.44.98 sudo /opt/tomcat9/bin/startup.sh"
                 }
             }
         }
     }
     post {
-          success {
-            archiveArtifacts artifacts: 'target/*.war', followSymlinks: false
-          }
-        }
+  success {
+    archiveArtifacts artifacts: 'target/*war', followSymlinks: false
+  }
+}
+
 }
