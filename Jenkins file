@@ -1,0 +1,35 @@
+pipeline{
+    tools {
+      maven 'maven3'
+    }
+    parameters {
+      choice choices: ['master', 'Feature-1', 'Feature-2', 'Gokul', 'Kavitha', 'Development', 'Production'], description: 'Choose the branch to build', name: 'Branch'
+    }
+    agent any
+    stages{
+        stage("Git checkout"){
+            steps{
+             git branch:Branch, url:'https://github.com/gokulgk7989/New-webapp.git'   
+            }
+        }
+        stage("Maven Build"){
+            steps{
+            sh "mvn clean package"    
+            }
+        }
+        stage("Deployment to Tomcat"){
+            steps{
+                sshagent(['tomcat']){
+                    sh "scp -o StrictHostKeyChecking=no target/*.war gokul@20.208.40.21:/opt/tomcat9/webapps"
+                    sh "ssh gokul@20.208.40.21 sudo /opt/tomcat9/bin/shutdown.sh"
+                    sh "ssh gokul@20.208.40.21 sudo /opt/tomcat9/bin/startup.sh"
+                }
+            }
+        }
+    }
+    post {
+  success {
+    archiveArtifacts artifacts: 'target/*.war', followSymlinks: false
+  }
+}
+}
